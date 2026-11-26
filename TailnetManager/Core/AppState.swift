@@ -101,7 +101,8 @@ final class AppState {
     /// Shows an error, except a cancelled request: leaving a page or a newer
     /// refresh stops the old one, and that isn't a failure ("cancelled").
     func show(_ error: Error) {
-        guard !Self.isCancellation(error) else { return }
+        guard !Self.isCancellation(error),
+              (error as? TailscaleAPIError)?.statusCode != 401 else { return }
         errorMessage = error.localizedDescription
     }
 
@@ -172,17 +173,26 @@ final class AppState {
         // Development builds are re-signed on every build, so the Keychain
         // prompts each time. TAILNET_MANAGER_TOKEN skips it.
         if let token = ProcessInfo.processInfo.environment["TAILNET_MANAGER_TOKEN"], !token.isEmpty {
-            api = TailscaleAPI(token: token)
+            api = makeAPI(token: token)
             isUnlocked = true
             return
         }
         #endif
         if let token = KeychainStore.load(account: Self.tokenAccount), !token.isEmpty {
-            api = TailscaleAPI(token: token)
+            api = makeAPI(token: token)
         }
     }
 
     // MARK: - Auth
+
+    private func makeAPI(token: String) -> TailscaleAPI {
+        TailscaleAPI(token: token) { [weak self] rejectedAPI in
+            guard let self, self.api === rejectedAPI, !self.needsReplacementToken else { return }
+            self.needsReplacementToken = true
+            self.errorMessage = nil
+            self.lock()
+        }
+    }
 
     /// Validates the token against the API before storing it.
     func signIn(token: String) async -> Bool {
@@ -191,7 +201,7 @@ final class AppState {
             errorMessage = "Paste your Tailscale API access token first."
             return false
         }
-        let candidate = TailscaleAPI(token: trimmed)
+        let candidate = makeAPI(token: trimmed)
         do {
             try await candidate.validateToken()
         } catch {
@@ -235,7 +245,7 @@ final class AppState {
     /// Pulls everything in parallel. Devices/users failures surface as an
     /// error; invites/keys/settings degrade silently (limited-scope tokens).
     func refreshAll() async {
-        guard let api else { return }
+        guard let api, !needsReplacementToken else { return }
         isLoading = true
         defer {
             isLoading = false
@@ -253,16 +263,11 @@ final class AppState {
         async let searchPathsResult = Result { try await api.dnsSearchPaths() }
         async let policyResult = Result { try await api.policyFile() }
 
-        switch await devicesResult {
+        let deviceResponse = await devicesResult
+        guard self.api === api, !needsReplacementToken else { return }
+        switch deviceResponse {
         case .success(let list): devices = list.sorted { $0.shortName.localizedCaseInsensitiveCompare($1.shortName) == .orderedAscending }
-        case .failure(let error):
-            if let apiError = error as? TailscaleAPIError, apiError.statusCode == 401 {
-                guard self.api === api else { return }
-                needsReplacementToken = true
-                lock()
-                return
-            }
-            show(error)
+        case .failure(let error): show(error)
         }
         switch await usersResult {
         case .success(let list): users = list.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }

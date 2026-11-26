@@ -21,12 +21,15 @@ final class TailscaleAPI: Sendable {
     private let tailnet: String
     private let base = URL(string: "https://api.tailscale.com/api/v2")!
     private let session: URLSession
+    private let onUnauthorized: @MainActor @Sendable (TailscaleAPI) -> Void
 
     /// - Parameter tailnet: "-" targets the token's own tailnet, so the
     ///   user never has to type an organization name.
-    init(token: String, tailnet: String = "-") {
+    init(token: String, tailnet: String = "-",
+         onUnauthorized: @escaping @MainActor @Sendable (TailscaleAPI) -> Void) {
         self.token = token
         self.tailnet = tailnet
+        self.onUnauthorized = onUnauthorized
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         self.session = URLSession(configuration: config)
@@ -91,6 +94,7 @@ final class TailscaleAPI: Sendable {
             throw URLError(.badServerResponse)
         }
         guard (200..<300).contains(http.statusCode) else {
+            if http.statusCode == 401 { await onUnauthorized(self) }
             let message = Self.errorMessage(from: data) ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
             throw TailscaleAPIError(statusCode: http.statusCode, message: message)
         }
