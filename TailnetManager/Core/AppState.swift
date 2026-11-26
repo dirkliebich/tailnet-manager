@@ -9,6 +9,7 @@ final class AppState {
 
     private(set) var api: TailscaleAPI?
     var isSignedIn: Bool { api != nil }
+    private(set) var needsReplacementToken = false
 
     /// The app opens on the login screen: a saved token is only used after
     /// the admin confirms it's them (Touch ID / password) or signs in with
@@ -199,6 +200,7 @@ final class AppState {
         }
         KeychainStore.save(trimmed, account: Self.tokenAccount)
         api = candidate
+        needsReplacementToken = false
         isUnlocked = true
         await refreshAll()
         return true
@@ -207,6 +209,7 @@ final class AppState {
     func signOut() {
         KeychainStore.delete(account: Self.tokenAccount)
         api = nil
+        needsReplacementToken = false
         isUnlocked = false
         devices = []
         users = []
@@ -252,7 +255,14 @@ final class AppState {
 
         switch await devicesResult {
         case .success(let list): devices = list.sorted { $0.shortName.localizedCaseInsensitiveCompare($1.shortName) == .orderedAscending }
-        case .failure(let error): show(error)
+        case .failure(let error):
+            if let apiError = error as? TailscaleAPIError, apiError.statusCode == 401 {
+                guard self.api === api else { return }
+                needsReplacementToken = true
+                lock()
+                return
+            }
+            show(error)
         }
         switch await usersResult {
         case .success(let list): users = list.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }

@@ -14,6 +14,13 @@ struct OnboardingView: View {
             VStack(spacing: 28) {
                 OnboardingMark()
 
+                if app.needsReplacementToken {
+                    Label("Tailscale rejected your saved API token. Create a new API access token and connect again.",
+                          systemImage: "exclamationmark.triangle")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                }
+
                 OnboardingStepsCard()
 
                 tokenEntry

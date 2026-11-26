@@ -7,7 +7,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if !app.isSignedIn {
+            if !app.isSignedIn || app.needsReplacementToken {
                 OnboardingView()
             } else if !app.isUnlocked {
                 LoginView()
