@@ -5,6 +5,18 @@ network on macOS, iPhone, and iPad. It brings people, devices, and access
 rules into one place so you can see who can reach which machines and review
 changes before applying them.
 
+## Screenshots
+
+Both macOS views show a fictional tailnet.
+
+### Home
+
+![Tailnet Manager Home showing server health, device approvals, and people](screenshots/home.png)
+
+### Access map
+
+![Tailnet Manager Access map showing which people can reach groups of machines](screenshots/map.png)
+
 ## What you can do
 
 - See devices, pending approvals, expiring keys, and other items that need attention.
