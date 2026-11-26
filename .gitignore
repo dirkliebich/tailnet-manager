@@ -1,0 +1,42 @@
+# Xcode build artefacts
+build/
+DerivedData/
+.build-sim/
+*.xcuserstate
+
+# xcuserdata (project itself is committed; regenerate with `xcodegen generate`)
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Packaged distributables (signed/notarized .app, .zip, .dmg)
+dist/
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+
+# Local tooling and private data
+.openidea/
+.claude/
+.codebase-memory/
+LMS_demo_systems.md
+.env
+.env.*
+!.env.example
+*.local.xcconfig
+*.pem
+*.key
+*.p8
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.cer
+id_rsa
+id_ed25519
+/private/
+/exports/
